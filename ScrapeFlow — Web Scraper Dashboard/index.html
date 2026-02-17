@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScrapeFlow — Web Scraper & Data Pipeline</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f4f0;--bg2:#eeecea;--bg3:#e4e2de;
+  --card:#ffffff;--border:#d4d2ce;--border2:#b4b2ae;
+  --text:#1a1a18;--text2:#6a6a68;--text3:#aaa8a4;
+  --accent:#ff4500;--accent2:#2563eb;--green:#16a34a;
+  --yellow:#ca8a04;--red:#dc2626;
+  --font:'Space Grotesk',sans-serif;--mono:'Fira Code',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh}
+/* Layout */
+.app{display:grid;grid-template-rows:60px 1fr;min-height:100vh}
+.topbar{background:var(--card);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:50}
+.brand{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:700;letter-spacing:-0.5px}
+.brand-dot{width:10px;height:10px;background:var(--accent);border-radius:2px;transform:rotate(45deg)}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.status-chip{display:flex;align-items:center;gap:6px;font-size:12px;font-family:var(--mono);padding:5px 12px;border-radius:4px;border:1px solid var(--border)}
+.status-chip.active{border-color:var(--green);color:var(--green);background:#f0fdf4}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:blink 1.5s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.main{display:grid;grid-template-columns:300px 1fr;height:calc(100vh - 60px)}
+/* Sidebar */
+.sidebar{background:var(--card);border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
+.sidebar-section{padding:18px;border-bottom:1px solid var(--border)}
+.section-title{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text2);margin-bottom:12px}
+/* New Scraper Form */
+.scraper-form{display:flex;flex-direction:column;gap:10px}
+.input-group{display:flex;flex-direction:column;gap:5px}
+.input-label{font-size:11px;color:var(--text2);font-family:var(--mono)}
+.input-field{border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;padding:9px 12px;border-radius:6px;outline:none;transition:border-color 0.15s;width:100%}
+.input-field:focus{border-color:var(--accent2)}
+.input-field::placeholder{color:var(--text3)}
+.select-field{border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:var(--font);font-size:13px;padding:9px 12px;border-radius:6px;outline:none;appearance:none;width:100%}
+.checkbox-group{display:flex;align-items:center;gap:8px;font-size:12px;cursor:pointer}
+.checkbox-group input{accent-color:var(--accent2)}
+.btn-run{background:var(--accent);color:#fff;font-family:var(--font);font-weight:600;font-size:13px;border:none;padding:10px;border-radius:6px;cursor:pointer;width:100%;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-run:hover{background:#e03d00;transform:translateY(-1px)}
+.btn-run:disabled{opacity:0.5;pointer-events:none}
+/* Jobs List */
+.jobs-list{display:flex;flex-direction:column;gap:2px;padding:8px}
+.job-item{padding:12px;border-radius:8px;cursor:pointer;transition:all 0.15s;border:1px solid transparent}
+.job-item:hover{background:var(--bg);border-color:var(--border)}
+.job-item.active{background:var(--bg2);border-color:var(--accent2)}
+.job-name{font-size:13px;font-weight:600;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.job-meta{display:flex;align-items:center;gap:8px;font-size:11px;font-family:var(--mono);color:var(--text2)}
+.job-status{padding:2px 7px;border-radius:3px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
+.job-status.running{background:#dbeafe;color:var(--accent2)}
+.job-status.done{background:#dcfce7;color:var(--green)}
+.job-status.error{background:#fee2e2;color:var(--red)}
+.job-status.queued{background:#fef9c3;color:var(--yellow)}
+/* Main Panel */
+.panel{overflow-y:auto;background:var(--bg)}
+.panel-header{padding:22px 28px;background:var(--card);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;sticky;top:0}
+.panel-title{font-size:20px;font-weight:700;letter-spacing:-0.5px;margin-bottom:4px}
+.panel-url{font-size:12px;font-family:var(--mono);color:var(--accent2)}
+.panel-actions{display:flex;gap:8px}
+.btn-sm{font-size:12px;font-family:var(--font);font-weight:600;padding:7px 14px;border-radius:6px;cursor:pointer;transition:all 0.15s;border:1px solid var(--border);background:var(--card);color:var(--text)}
+.btn-sm:hover{border-color:var(--border2)}
+.btn-sm.primary{background:var(--accent2);color:#fff;border-color:var(--accent2)}
+.btn-sm.primary:hover{background:#1d4ed8}
+.panel-body{padding:24px 28px;display:flex;flex-direction:column;gap:20px}
+/* Progress */
+.progress-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px}
+.progress-header{display:flex;justify-content:space-between;margin-bottom:12px}
+.progress-label{font-size:13px;font-weight:600}
+.progress-pct{font-size:13px;font-family:var(--mono);color:var(--accent2);font-weight:600}
+.progress-bar{height:8px;background:var(--bg2);border-radius:4px;overflow:hidden;margin-bottom:10px}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:4px;transition:width 0.5s ease}
+.progress-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.p-stat{text-align:center;background:var(--bg);border-radius:6px;padding:8px}
+.p-stat-val{font-size:18px;font-weight:700;letter-spacing:-0.5px}
+.p-stat-label{font-size:10px;color:var(--text2);font-family:var(--mono);text-transform:uppercase;letter-spacing:0.5px}
+/* Log */
+.log-card{background:#1a1a18;border:1px solid #333;border-radius:10px;overflow:hidden}
+.log-header{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid #333;background:#141412}
+.log-title{font-size:11px;font-family:var(--mono);color:#888;text-transform:uppercase;letter-spacing:1px}
+.log-clear{font-size:11px;font-family:var(--mono);color:#555;background:none;border:none;cursor:pointer}
+.log-clear:hover{color:#888}
+.log-body{padding:12px 16px;font-family:var(--mono);font-size:12px;line-height:2;max-height:240px;overflow-y:auto;color:#aaa}
+.log-line{display:flex;gap:12px}
+.log-time{color:#555;flex-shrink:0}
+.log-msg.info{color:#58a6ff}
+.log-msg.success{color:#3fb950}
+.log-msg.warn{color:#d29922}
+.log-msg.error{color:#f85149}
+.log-msg.data{color:#e3b341}
+/* Data Table */
+.data-card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.data-header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border)}
+.data-title{font-size:13px;font-weight:600}
+.data-count{font-size:11px;font-family:var(--mono);color:var(--text2);background:var(--bg2);padding:3px 10px;border-radius:20px}
+.data-table-wrap{overflow-x:auto;max-height:320px;overflow-y:auto}
+table{width:100%;border-collapse:collapse}
+th{font-size:11px;font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;color:var(--text2);padding:10px 16px;text-align:left;background:var(--bg);border-bottom:1px solid var(--border);position:sticky;top:0}
+td{font-size:12px;padding:10px 16px;border-bottom:1px solid var(--bg2);font-family:var(--mono)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg)}
+.tag{padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}
+.tag.high{background:#dcfce7;color:var(--green)}
+.tag.med{background:#fef9c3;color:var(--yellow)}
+.tag.low{background:#fee2e2;color:var(--red)}
+/* Export Bar */
+.export-bar{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+.export-label{font-size:13px;font-weight:600}
+.export-actions{display:flex;gap:8px}
+/* Toast */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--text);color:var(--bg);padding:11px 18px;border-radius:8px;font-size:13px;font-weight:600;z-index:999;animation:toastIn 0.3s ease}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+/* Scrollbar */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-dot"></div>
+      ScrapeFlow
+    </div>
+    <div class="topbar-right">
+      <div class="status-chip active"><span class="dot"></span> 2 jobs running</div>
+      <button class="btn-sm primary" id="scheduleBtn">⏱ Schedule</button>
+    </div>
+  </header>
+  <div class="main">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <div class="section-title">New Scraper Job</div>
+        <div class="scraper-form">
+          <div class="input-group">
+            <label class="input-label">Target URL</label>
+            <input class="input-field" id="targetUrl" type="url" placeholder="https://example.com">
+          </div>
+          <div class="input-group">
+            <label class="input-label">Data Type</label>
+            <select class="select-field" id="dataType">
+              <option value="products">Products & Pricing</option>
+              <option value="leads">Leads & Contacts</option>
+              <option value="news">News & Articles</option>
+              <option value="jobs">Job Listings</option>
+              <option value="reviews">Reviews & Ratings</option>
+              <option value="custom">Custom Selector</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label class="input-label">CSS Selector (optional)</label>
+            <input class="input-field" id="cssSelector" placeholder=".product-card, h2.title">
+          </div>
+          <div class="input-group">
+            <label class="input-label">Max Pages</label>
+            <input class="input-field" id="maxPages" type="number" value="10" min="1" max="1000">
+          </div>
+          <label class="checkbox-group">
+            <input type="checkbox" id="headless" checked> Run headless (JS rendering)
+          </label>
+          <label class="checkbox-group">
+            <input type="checkbox" id="proxy"> Use proxy rotation
+          </label>
+          <label class="checkbox-group">
+            <input type="checkbox" id="dedup" checked> Auto-deduplicate results
+          </label>
+          <button class="btn-run" id="startBtn">▶ Start Scraping</button>
+        </div>
+      </div>
+      <div class="sidebar-section" style="flex:1">
+        <div class="section-title">Job Queue</div>
+        <div class="jobs-list" id="jobsList"></div>
+      </div>
+    </aside>
+    <!-- Main Panel -->
+    <div class="panel">
+      <div class="panel-header" id="panelHeader">
+        <div>
+          <div class="panel-title" id="panelTitle">Amazon Product Monitor</div>
+          <div class="panel-url" id="panelUrl">https://amazon.com/s?k=wireless+headphones</div>
+        </div>
+        <div class="panel-actions">
+          <button class="btn-sm" id="pauseBtn">⏸ Pause</button>
+          <button class="btn-sm" id="stopBtn">■ Stop</button>
+          <button class="btn-sm primary" id="exportBtn">↓ Export</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <!-- Progress -->
+        <div class="progress-card">
+          <div class="progress-header">
+            <span class="progress-label">Scraping Progress</span>
+            <span class="progress-pct" id="progressPct">0%</span>
+          </div>
+          <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+          <div class="progress-stats">
+            <div class="p-stat"><div class="p-stat-val" id="statPages">0</div><div class="p-stat-label">Pages</div></div>
+            <div class="p-stat"><div class="p-stat-val" id="statItems">0</div><div class="p-stat-label">Items</div></div>
+            <div class="p-stat"><div class="p-stat-val" id="statErrors">0</div><div class="p-stat-label">Errors</div></div>
+            <div class="p-stat"><div class="p-stat-val" id="statSpeed">0/s</div><div class="p-stat-label">Speed</div></div>
+          </div>
+        </div>
+        <!-- Log -->
+        <div class="log-card">
+          <div class="log-header">
+            <span class="log-title">▶ Live Log</span>
+            <button class="log-clear" id="clearLog">clear</button>
+          </div>
+          <div class="log-body" id="logBody"></div>
+        </div>
+        <!-- Data Table -->
+        <div class="data-card">
+          <div class="data-header">
+            <span class="data-title">Scraped Data</span>
+            <span class="data-count" id="dataCount">0 records</span>
+          </div>
+          <div class="data-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Title</th>
+                  <th>Price</th>
+                  <th>Rating</th>
+                  <th>Reviews</th>
+                  <th>Category</th>
+                  <th>Priority</th>
+                </tr>
+              </thead>
+              <tbody id="dataBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <!-- Export Bar -->
+        <div class="export-bar">
+          <span class="export-label">Export scraped data</span>
+          <div class="export-actions">
+            <button class="btn-sm" id="exportCSV">📄 CSV</button>
+            <button class="btn-sm" id="exportJSON">{ } JSON</button>
+            <button class="btn-sm" id="exportWebhook">🔗 Webhook</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+'use strict';
+const jobs = [
+  {id:1,name:'Amazon Product Monitor',url:'https://amazon.com/s?k=wireless+headphones',type:'products',status:'running',pages:47,items:312,errors:2},
+  {id:2,name:'LinkedIn Leads Scraper',url:'https://linkedin.com/search/results/people/',type:'leads',status:'running',pages:12,items:89,errors:0},
+  {id:3,name:'TechCrunch News Feed',url:'https://techcrunch.com',type:'news',status:'done',pages:20,items:180,errors:1},
+  {id:4,name:'Indeed Job Listings',url:'https://indeed.com/jobs?q=python+developer',type:'jobs',status:'queued',pages:0,items:0,errors:0},
+  {id:5,name:'Trustpilot Reviews',url:'https://trustpilot.com/review/saas-company.com',type:'reviews',status:'error',pages:3,items:24,errors:5},
+];
+let activeJob = jobs[0];
+let scraping = false;
+let scrapeInterval = null;
+let logLines = [];
+const mockProducts = [
+  {title:'Sony WH-1000XM5 Headphones',price:'$348.00',rating:'4.8',reviews:'24,312',category:'Electronics',priority:'high'},
+  {title:'Bose QuietComfort 45',price:'$279.00',rating:'4.7',reviews:'18,901',category:'Electronics',priority:'high'},
+  {title:'Apple AirPods Pro (2nd Gen)',price:'$239.00',rating:'4.9',reviews:'51,204',category:'Apple',priority:'high'},
+  {title:'Jabra Evolve2 65',price:'$399.00',rating:'4.5',reviews:'3,421',category:'Business',priority:'med'},
+  {title:'Anker Soundcore Q45',price:'$55.99',rating:'4.3',reviews:'12,088',category:'Budget',priority:'med'},
+  {title:'Sennheiser HD 450BT',price:'$149.95',rating:'4.4',reviews:'5,672',category:'Audio',priority:'med'},
+  {title:'JBL Live 660NC',price:'$99.95',rating:'4.2',reviews:'8,934',category:'JBL',priority:'low'},
+  {title:'Beats Studio Pro',price:'$349.95',rating:'4.1',reviews:'2,104',category:'Beats',priority:'low'},
+];
+function renderJobs(){
+  const list = document.getElementById('jobsList');
+  list.innerHTML = jobs.map(j=>`
+    <div class="job-item ${j.id===activeJob.id?'active':''}" data-id="${j.id}">
+      <div class="job-name">${j.name}</div>
+      <div class="job-meta">
+        <span class="job-status ${j.status}">${j.status}</span>
+        <span>${j.items} items</span>
+      </div>
+    </div>`).join('');
+  list.querySelectorAll('.job-item').forEach(el=>{
+    el.addEventListener('click',()=>{
+      activeJob = jobs.find(j=>j.id===parseInt(el.dataset.id));
+      document.getElementById('panelTitle').textContent = activeJob.name;
+      document.getElementById('panelUrl').textContent = activeJob.url;
+      renderJobs();
+    });
+  });
+}
+function addLog(msg, type='info'){
+  const now = new Date();
+  const time = now.toTimeString().slice(0,8);
+  logLines.push({time, msg, type});
+  if(logLines.length>100) logLines.shift();
+  const body = document.getElementById('logBody');
+  const line = document.createElement('div');
+  line.className = 'log-line';
+  line.innerHTML = `<span class="log-time">[${time}]</span><span class="log-msg ${type}">${msg}</span>`;
+  body.appendChild(line);
+  body.scrollTop = body.scrollHeight;
+}
+function updateProgress(pct, pages, items, errors, speed){
+  document.getElementById('progressPct').textContent = pct+'%';
+  document.getElementById('progressFill').style.width = pct+'%';
+  document.getElementById('statPages').textContent = pages;
+  document.getElementById('statItems').textContent = items;
+  document.getElementById('statErrors').textContent = errors;
+  document.getElementById('statSpeed').textContent = speed+'/s';
+}
+function renderTable(data){
+  const body = document.getElementById('dataBody');
+  body.innerHTML = data.map((r,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td>${r.title}</td>
+      <td>${r.price}</td>
+      <td>⭐ ${r.rating}</td>
+      <td>${r.reviews}</td>
+      <td>${r.category}</td>
+      <td><span class="tag ${r.priority}">${r.priority}</span></td>
+    </tr>`).join('');
+  document.getElementById('dataCount').textContent = data.length+' records';
+}
+function showToast(msg){
+  const t=document.createElement('div');t.className='toast';t.textContent=msg;
+  document.body.appendChild(t);setTimeout(()=>t.remove(),3000);
+}
+function startScrape(){
+  if(scraping) return;
+  const url = document.getElementById('targetUrl').value.trim();
+  if(!url){showToast('⚠ Please enter a URL');return;}
+  scraping = true;
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('startBtn').textContent = '⟳ Scraping...';
+  let progress = 0, pages = 0, items = 0;
+  const logMessages = [
+    ['Initializing headless browser...','info'],
+    [`Navigating to ${url}`,'info'],
+    ['Page loaded. Detecting content structure...','success'],
+    ['Found 24 product cards on page 1','data'],
+    ['Extracting: title, price, rating, reviews...','info'],
+    ['Page 1 complete. 24 items extracted.','success'],
+    ['Following pagination → page 2','info'],
+    ['Rate limiter: sleeping 1.2s...','warn'],
+    ['Page 2 complete. 24 items extracted.','success'],
+    ['Deduplication: removed 3 duplicates','warn'],
+    ['Page 3 complete. 22 items extracted.','success'],
+    ['Proxy rotation: switched to node US-West-2','info'],
+    ['Saving checkpoint...','info'],
+    ['All pages complete. Running dedup...','success'],
+    ['Final dataset: '+mockProducts.length+' unique records','data'],
+    ['Export ready ✓','success'],
+  ];
+  let logIdx = 0;
+  scrapeInterval = setInterval(()=>{
+    progress = Math.min(progress+6, 100);
+    pages = Math.floor(progress/10)+1;
+    items = Math.floor(progress*3.12);
+    updateProgress(progress, pages, items, progress>50?2:0, (Math.random()*8+4).toFixed(1));
+    if(logIdx < logMessages.length){
+      addLog(logMessages[logIdx][0], logMessages[logIdx][1]);
+      logIdx++;
+    }
+    if(progress===100){
+      clearInterval(scrapeInterval);
+      scraping = false;
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('startBtn').textContent = '▶ Start Scraping';
+      renderTable(mockProducts);
+      showToast('✓ Scrape complete — '+mockProducts.length+' records');
+    }
+  }, 400);
+}
+document.getElementById('startBtn').addEventListener('click',startScrape);
+document.getElementById('pauseBtn').addEventListener('click',()=>{
+  if(scraping){clearInterval(scrapeInterval);scraping=false;showToast('⏸ Scrape paused');}
+});
+document.getElementById('stopBtn').addEventListener('click',()=>{
+  clearInterval(scrapeInterval);scraping=false;
+  document.getElementById('startBtn').disabled=false;
+  document.getElementById('startBtn').textContent='▶ Start Scraping';
+  showToast('■ Scrape stopped');
+});
+document.getElementById('clearLog').addEventListener('click',()=>{
+  document.getElementById('logBody').innerHTML='';logLines=[];
+});
+function downloadJSON(data, filename){
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();
+}
+function downloadCSV(data, filename){
+  if(!data.length) return;
+  const keys=Object.keys(data[0]);
+  const csv=[keys.join(','),...data.map(r=>keys.map(k=>'"'+r[k]+'"').join(','))].join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();
+}
+document.getElementById('exportJSON').addEventListener('click',()=>{downloadJSON(mockProducts,'scrapeflow-export.json');showToast('✓ JSON downloaded');});
+document.getElementById('exportCSV').addEventListener('click',()=>{downloadCSV(mockProducts,'scrapeflow-export.csv');showToast('✓ CSV downloaded');});
+document.getElementById('exportBtn').addEventListener('click',()=>{downloadJSON(mockProducts,'scrapeflow-export.json');showToast('✓ Exported');});
+document.getElementById('exportWebhook').addEventListener('click',()=>showToast('🔗 Webhook integration — configure in Settings'));
+document.getElementById('scheduleBtn').addEventListener('click',()=>showToast('⏱ Scheduler: cron jobs coming soon'));
+renderJobs();
+addLog('ScrapeFlow ready. Configure a job and click Start.','info');
+</script>
+</body>
+</html>
